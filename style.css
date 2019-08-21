@@ -1,0 +1,132 @@
+#map {
+    background-color: #323232;
+}
+
+.test-anim {
+    position: relative;
+    width: 300px;
+    height: 52px;
+}
+
+.test-anim svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 51px;
+    height: 51px;
+   
+}
+
+.test-anim svg circle {
+    stroke-width: 1;
+    stroke-dasharray: 8, 4;
+    fill: none;
+    stroke: #000;
+    transition: transform 1s cubic-bezier(0.550, 0.055, 0.675, 0.190), opacity 1s cubic-bezier(0.550, 0.055, 0.675, 0.190);
+}
+
+.test-anim .path {
+    position: absolute;
+    top: 26px;
+    left: 26px;
+    height: 1px;
+    width: 8px;
+    opacity: 0;
+    background-color: #000;
+    transition: all 1s ease-out;
+    transition-delay: .6s;
+}
+
+.test-anim.anim-ok circle {
+    transform-origin: center;
+    transform: scale(0.1) rotate(90deg);
+    opacity: 0;
+}
+
+.test-anim.anim-ok .path {
+    opacity: 1;
+}
+
+.test-anim.anim-ok .path1 {
+    transform: translateX(0px);
+}
+
+.test-anim.anim-ok .path2 {
+    transform: translateX(12px);
+}
+
+.test-anim.anim-ok .path3 {
+    transform: translateX(24px);
+}
+
+.test-anim.anim-ok .path4 {
+    transform: translateX(36px);
+}
+
+.test-anim.anim-ok .path5 {
+    transform: translateX(48px);
+}
+
+.test-anim.anim-ok .path6 {
+    transform: translateX(60px);
+}
+
+.test-anim.anim-ok .path7 {
+    transform: translateX(72px);
+}
+
+.test-anim.anim-ok .path8 {
+    transform: translateX(84px);
+}
+
+.test-anim.anim-ok .path9 {
+    transform: translateX(96px);
+}
+
+.test-anim.anim-ok .path10 {
+    transform: translateX(108px);
+}
+
+.test-anim.anim-ok .path11 {
+    transform: translateX(120px);
+}
+
+.test-anim.anim-ok .path12 {
+    transform: translateX(132px);
+}
+
+.test-anim.anim-ok .path13 {
+    transform: translateX(144px);
+}
+
+.test-anim.anim-ok .path14 {
+    transform: translateX(156px);
+}
+
+.test-anim.anim-ok .path15 {
+    transform: translateX(168px);
+}
+
+.test-anim.anim-ok .path16 {
+    transform: translateX(180px);
+}
+
+.test-anim.anim-ok .path17 {
+    transform: translateX(192px);
+}
+
+.test-anim.anim-ok .path18 {
+    transform: translateX(204px);
+}
+
+.test-anim.anim-ok .path19 {
+    transform: translateX(216px);
+}
+
+.test-anim.anim-ok .path20 {
+    transform: translateX(228px);
+}
+
+
+
+
