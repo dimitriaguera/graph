@@ -4,7 +4,7 @@
 
 var $ = jQuery;
 var Api = window.myApiSimulation;
-var radius = 30;
+
 var current_data = {
     nodes: [],
     links: []
@@ -13,8 +13,17 @@ var current_data = {
 class Graph {
     constructor() {
         var svg = d3.select('svg');
-        var width = +svg.attr('width');
-        var height = +svg.attr('height');
+
+        this.width = window.innerWidth;
+        this.height = window.innerHeight;
+        
+        svg.attr('width', this.width);
+        svg.attr('height', this.height);
+
+        this.centerX = this.width / 2;
+        this.centerY = this.height / 2;
+        this.radius = 30;
+        this.forceStrength = 0.03;
 
         this.nodes = [];
         this.links = [];
@@ -25,35 +34,50 @@ class Graph {
         this.dragEnd = this.dragEnd.bind(this);
 
         this.simulation = d3.forceSimulation()
-        .force('center', d3.forceCenter(width/2, height/2))                  
-        //.force('charge', d3.forceManyBody())
-        .force('collide', d3.forceCollide(radius + 10))
-        .force('link', d3.forceLink().id(d => d.id).distance(200));
+
+        .velocityDecay(0.2)
+        .force('x', d3.forceX().strength(this.forceStrength).x(this.centerX))
+        .force('y', d3.forceY().strength(this.forceStrength).y(this.centerY))
+        .force('link', d3.forceLink().id(d => d.id).distance(200))
+        .force('charge', d3.forceManyBody());
+
+        //.force('center', d3.forceCenter(this.centerX, this.centerY));           
+
+        //.force('charge', null)
+        //.force('collide', d3.forceCollide(this.radius));
 
         this.link = svg.append('g')
             .attr('class', 'links')
             .selectAll('line');
 
-        this.node = svg.append('g')
-            .attr('class', 'nodes')
-            .selectAll('.node')
+        this.node = svg.selectAll('.node')
     }
 
     start(data) {
-        this.simulation.on('tick', this.ticked);
         this.storeData(data);
         this.applyData();
+        this.simulation.on('tick', this.ticked);
     }
 
     update(data) {
-        this.simulation.alphaTarget(0.3).restart();
+        //this.simulation.stop();
+        //this.simulation.stop();
+        //this.simulation.alphaTarget(0.3).restart();
+        
         this.storeData(data);
         this.applyData();
+
+        this.simulation.alphaTarget(0.1).restart();
+        // this.simulation.stop();
+        //this.simulation.alphaTarget(0.3).restart();
     }
 
     storeData(data) {
+        console.log('data strored: ', this.nodes)
         if(data && data.nodes) {
             this.nodes = data.nodes;
+            console.log('data coming: ', data.nodes);
+            console.log('data coming snapshoot: ', snapShoot(data.nodes));
         }
 
         if(data && data.links) {
@@ -68,39 +92,68 @@ class Graph {
     }
 
     applyNode() {
-        var node = this.node.data(this.nodes);
-        var nodes_enter = node.enter()
-            .append('g')
-            .attr('class', 'node')
-            .call(d3.drag()
-                .on('start', this.dragStart)
-                .on('drag', this.dragDrag)
-                .on('end', this.dragEnd)
-        );
+        // var node = this.node.data(this.nodes);
+        // var nodes_enter = node.enter()
+        //     .append('g')
+        //     .attr('class', 'node')
+        //     .call(d3.drag()
+        //         .on('start', this.dragStart)
+        //         .on('drag', this.dragDrag)
+        //         .on('end', this.dragEnd)
+        // );
 
-        nodes_enter.append('circle')
-            .attr('class', 'node-circle')
-            .attr('r', radius)
-            .attr('fill', 'white')
-            .attr('stroke', '#e3e3e3');
+        // nodes_enter.append('circle')
+        //     .attr('class', 'node-circle')
+        //     .attr('r', this.radius)
+        //     .attr('fill', 'white')
+        //     .attr('stroke', '#e3e3e3');
 
-        nodes_enter.append('svg:image')
-            .attr('xlink:href', d => {
-                console.log('enter');
-                return `img/${d.src}`
-            })
-            .attr('x', -21)
-            .attr('y', -28)
-            .attr('width', 40)
-            .attr('height', 55);
+        // nodes_enter.append('svg:image')
+        //     .attr('xlink:href', d => {
+        //         console.log('enter');
+        //         return `img/${d.src}`
+        //     })
+        //     .attr('x', -21)
+        //     .attr('y', -28)
+        //     .attr('width', 40)
+        //     .attr('height', 55);
 
-        nodes_enter.append('title')
-            .text( d => d.name );
+        // nodes_enter.append('title')
+        //     .text( d => d.name );
+        this.node = this.node.data(this.nodes);
+        console.log('data after .data snapshoot: ', snapShoot(this.nodes));
+        var enter = this.node.enter()
+            .append('circle')
+                .attr('class', 'node')
+                .attr('r', this.radius)
+                .attr('fill', 'white')
+                .attr('stroke', '#e3e3e3')
+                // .attr('cx', this.centerX )
+                // .attr('cy', this.centerY )
+                .attr('id', d => {
+                    d.x = this.centerX;
+                    d.y = this.centerY;
+                    return d.id;
+                })
+                .call(d3.drag()
+                    .on('start', this.dragStart)
+                    .on('drag', this.dragDrag)
+                    .on('end', this.dragEnd)
+                );
 
-        node.exit()
-                .remove();
+                //.merge(node);
 
-        this.node = node.merge(nodes_enter);
+        //this.node.transition()
+        this.node.attr('id', d => {
+            d.x = d.x;
+            d.y = d.y;
+            return d.id;
+        })
+        this.node.exit().remove();      
+        this.node = this.node.merge(enter);
+
+        // this.node = node;
+
     }
 
     applyLink() {
@@ -117,7 +170,9 @@ class Graph {
     }
 
     applyForce() {
+        console.log('data before s.nodes snapshoot: ', snapShoot(this.nodes));
         this.simulation.nodes(this.nodes);
+        console.log('data after s.nodes snapshoot: ', snapShoot(this.nodes));
         this.simulation.force('link')
             .links(this.links);
     }
@@ -130,9 +185,9 @@ class Graph {
             .attr('y2', d => d.target.y );
 
         this.node
-            // .attr('cx', d => d.x )
-            // .attr('cy', d => d.y );
-            .attr('transform', d => `translate(${d.x},${d.y})`);
+            .attr('cx', d => d.x )
+            .attr('cy', d => d.y );
+            //.attr('transform', d => `translate(${d.x},${d.y})`);
     }
 
     dragStart(d) {
@@ -162,6 +217,7 @@ Api.get(8, function(data) {
 
 $('#button-1').on('click', () => {
     Api.get(12, function(data) {
+
         current_data = data;
         graph.update(data);
     });
@@ -207,3 +263,18 @@ $('#button-3').on('click', () => {
 
     graph.update(current_data);
 });
+
+$('#button-4').on('click', () => {
+    current_data = Object.assign({}, current_data);
+    graph.update(current_data);
+});
+
+$('#button-5').on('click', () => {
+    graph.simulation.tick(1);
+});
+
+function snapShoot(data) {
+    var preservedData = JSON.stringify(data);
+    preservedData = JSON.parse(preservedData);
+    return preservedData;
+}
