@@ -10,6 +10,19 @@ var current_data = {
     links: []
 };
 
+class WorkerApi {
+    constructor(src, callback) {
+        this.worker = new Worker(src);
+        this.worker.onmessage = e => {
+            callback(e.data);
+        };
+    }
+
+    post( data ) {
+        this.worker.postMessage( data );
+    }
+}
+
 class Graph {
     constructor() {
         var svg = d3.select('svg');
@@ -22,7 +35,7 @@ class Graph {
 
         this.centerX = this.width / 2;
         this.centerY = this.height / 2;
-        this.radius = 30;
+        this.radius = 15;
         this.forceStrength = 0.03;
 
         this.nodes = [];
@@ -35,16 +48,12 @@ class Graph {
 
         this.simulation = d3.forceSimulation()
 
-        .velocityDecay(0.2)
+        .velocityDecay(0.4)
         .force('x', d3.forceX().strength(this.forceStrength).x(this.centerX))
         .force('y', d3.forceY().strength(this.forceStrength).y(this.centerY))
-        .force('link', d3.forceLink().id(d => d.id).distance(200))
-        .force('charge', d3.forceManyBody());
-
-        //.force('center', d3.forceCenter(this.centerX, this.centerY));           
-
-        //.force('charge', null)
-        //.force('collide', d3.forceCollide(this.radius));
+        //.force('charge', d3.forceManyBody().strength(-30))
+        .force('link', d3.forceLink().id(d => d.id).distance(400))
+        .force('collide', d3.forceCollide(this.radius + 10));
 
         this.link = svg.append('g')
             .attr('class', 'links')
@@ -72,14 +81,23 @@ class Graph {
         //this.simulation.alphaTarget(0.3).restart();
     }
 
-    storeData(data) {
-        console.log('data strored: ', this.nodes)
-        if(data && data.nodes) {
-            this.nodes = data.nodes;
-            console.log('data coming: ', data.nodes);
-            console.log('data coming snapshoot: ', snapShoot(data.nodes));
+    updateArray(arr1, arr2) {
+        if( arr1 && arr1.length ) {
+            arr2.forEach(el2 => {
+                var el = arr1.find(el1 => el1.id === el2.id );
+                if( el ) {
+                    el2.x = el.x;
+                    el2.y = el.y;
+                }
+            });    
         }
+        return arr2;
+    }
 
+    storeData(data) {
+        if(data && data.nodes) {
+            this.nodes = this.updateArray(this.nodes, data.nodes);
+        }
         if(data && data.links) {
             this.links = data.links;
         }
@@ -121,39 +139,34 @@ class Graph {
         // nodes_enter.append('title')
         //     .text( d => d.name );
         this.node = this.node.data(this.nodes);
-        console.log('data after .data snapshoot: ', snapShoot(this.nodes));
         var enter = this.node.enter()
-            .append('circle')
+            .append('g')
+            .attr('class', 'node')
+            .attr('id', d => {
+                d.x = this.centerX;
+                d.y = this.centerY;
+                return d.id;
+            })
+            .call(d3.drag()
+                .on('start', this.dragStart)
+                .on('drag', this.dragDrag)
+                .on('end', this.dragEnd)
+            );
+
+        enter.append('circle')
                 .attr('class', 'node')
                 .attr('r', this.radius)
                 .attr('fill', 'white')
-                .attr('stroke', '#e3e3e3')
-                // .attr('cx', this.centerX )
-                // .attr('cy', this.centerY )
-                .attr('id', d => {
-                    d.x = this.centerX;
-                    d.y = this.centerY;
-                    return d.id;
-                })
-                .call(d3.drag()
-                    .on('start', this.dragStart)
-                    .on('drag', this.dragDrag)
-                    .on('end', this.dragEnd)
-                );
+                .attr('stroke', '#e3e3e3');
 
-                //.merge(node);
+        enter.append('text')
+            .style("fill", "#555")
+            .style("font-family", "Arial")
+            .style("font-size", 10)
+            .text(d => d.id);
 
-        //this.node.transition()
-        this.node.attr('id', d => {
-            d.x = d.x;
-            d.y = d.y;
-            return d.id;
-        })
         this.node.exit().remove();      
         this.node = this.node.merge(enter);
-
-        // this.node = node;
-
     }
 
     applyLink() {
@@ -170,9 +183,7 @@ class Graph {
     }
 
     applyForce() {
-        console.log('data before s.nodes snapshoot: ', snapShoot(this.nodes));
         this.simulation.nodes(this.nodes);
-        console.log('data after s.nodes snapshoot: ', snapShoot(this.nodes));
         this.simulation.force('link')
             .links(this.links);
     }
@@ -184,10 +195,7 @@ class Graph {
             .attr('x2', d => d.target.x )
             .attr('y2', d => d.target.y );
 
-        this.node
-            .attr('cx', d => d.x )
-            .attr('cy', d => d.y );
-            //.attr('transform', d => `translate(${d.x},${d.y})`);
+        this.node.attr('transform', d => `translate(${d.x},${d.y})`);
     }
 
     dragStart(d) {
@@ -209,14 +217,18 @@ class Graph {
 }
 
 var graph = new Graph();
+var worker = new WorkerApi('force.worker.js', data => console.log(data));
 
-Api.get(8, function(data) {
+worker.post('yooooo gros');
+
+Api.get(500, function(data) {
+    data.links = [];
     current_data = data;
     graph.start(data);
 });
 
 $('#button-1').on('click', () => {
-    Api.get(12, function(data) {
+    Api.get(30, function(data) {
 
         current_data = data;
         graph.update(data);
