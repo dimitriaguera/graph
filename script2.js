@@ -10,6 +10,8 @@ var current_data = {
     links: []
 };
 
+var params = null;
+
 class WorkerApi {
     constructor(src, callback) {
         this.worker = new Worker(src);
@@ -40,6 +42,15 @@ class Graph {
         this.transitionDuration = 400;
         this.distanceLink = 400;
 
+        params = {
+            centerX: this.centerX,
+            centerY: this.centerY,
+            radius: this.radius,
+            forceStrength: this.forceStrength,
+            transitionDuration: this.transitionDuration,
+            distanceLink: this.distanceLink,
+        };
+
         this.nodes = [];
         this.links = [];
 
@@ -47,15 +58,6 @@ class Graph {
         this.dragStart = this.dragStart.bind(this);
         this.dragDrag = this.dragDrag.bind(this);
         this.dragEnd = this.dragEnd.bind(this);
-
-        this.simulation = d3.forceSimulation()
-
-        .velocityDecay(0.4)
-        .force('x', d3.forceX().strength(this.forceStrength).x(this.centerX))
-        .force('y', d3.forceY().strength(this.forceStrength).y(this.centerY))
-        //.force('charge', d3.forceManyBody().strength(-30))
-        .force('link', d3.forceLink().id(d => d.id).distance(this.distanceLink))
-        .force('collide', d3.forceCollide(this.radius + 10));
 
         this.link = svg.append('g')
             .attr('class', 'links')
@@ -67,21 +69,12 @@ class Graph {
     start(data) {
         this.storeData(data);
         this.applyData();
-        this.simulation.on('tick', this.ticked);
-        //this.simulation.stop();
     }
 
     update(data) {
-        //this.simulation.stop();
-        //this.simulation.stop();
-        //this.simulation.alphaTarget(0.3).restart();
-        
         this.storeData(data);
         this.applyData();
-
-        this.simulation.alphaTarget(0.1).restart();
-        // this.simulation.stop();
-        //this.simulation.alphaTarget(0.3).restart();
+        this.ticked();
     }
 
     updateArray(arr1, arr2) {
@@ -99,7 +92,8 @@ class Graph {
 
     storeData(data) {
         if(data && data.nodes) {
-            this.nodes = this.updateArray(this.nodes, data.nodes);
+            //this.nodes = this.updateArray(this.nodes, data.nodes);
+            this.nodes = data.nodes;
         }
         if(data && data.links) {
             this.links = data.links;
@@ -109,38 +103,9 @@ class Graph {
     applyData() {
         this.applyNode();
         this.applyLink();
-        this.applyForce();
     }
 
     applyNode() {
-        // var node = this.node.data(this.nodes);
-        // var nodes_enter = node.enter()
-        //     .append('g')
-        //     .attr('class', 'node')
-        //     .call(d3.drag()
-        //         .on('start', this.dragStart)
-        //         .on('drag', this.dragDrag)
-        //         .on('end', this.dragEnd)
-        // );
-
-        // nodes_enter.append('circle')
-        //     .attr('class', 'node-circle')
-        //     .attr('r', this.radius)
-        //     .attr('fill', 'white')
-        //     .attr('stroke', '#e3e3e3');
-
-        // nodes_enter.append('svg:image')
-        //     .attr('xlink:href', d => {
-        //         console.log('enter');
-        //         return `img/${d.src}`
-        //     })
-        //     .attr('x', -21)
-        //     .attr('y', -28)
-        //     .attr('width', 40)
-        //     .attr('height', 55);
-
-        // nodes_enter.append('title')
-        //     .text( d => d.name );
         this.node = this.node.data(this.nodes);
 
         this.node.exit().transition()
@@ -152,11 +117,7 @@ class Graph {
         var enter = this.node.enter()
             .append('g')
             .attr('class', 'node')
-            .attr('id', d => {
-                d.x = this.centerX;
-                d.y = this.centerY;
-                return d.id;
-            })
+            .attr('id', d => d.id)
             .call(d3.drag()
                 .on('start', this.dragStart)
                 .on('drag', this.dragDrag)
@@ -168,12 +129,6 @@ class Graph {
                 .attr('r', this.radius)
                 .attr('fill', 'white')
                 .attr('stroke', '#e3e3e3');
-
-        enter.append('text')
-            .style("fill", "#555")
-            .style("font-family", "Arial")
-            .style("font-size", 10)
-            .text(d => d.id);
 
         this.node = this.node.merge(enter);
     }
@@ -191,11 +146,6 @@ class Graph {
         this.link = this.link.merge(link_enter);
     }
 
-    applyForce() {
-        this.simulation.nodes(this.nodes);
-        this.simulation.force('link')
-            .links(this.links);
-    }
 
     ticked() {
         this.link
@@ -208,32 +158,85 @@ class Graph {
     }
 
     dragStart(d) {
-        if (!d3.event.active) this.simulation.alphaTarget(0.3).restart();
-        d.fx = d.x;
-        d.fy = d.y;
+        console.log(d);
+        // if (!d3.event.active) this.simulation.alphaTarget(0.3).restart();
+        // d.fx = d.x;
+        // d.fy = d.y;
+
+        var event = {
+            type: 'dragStart',
+            id: d.id,
+            active: d3.event.active,
+        }
+    
+        worker.post(event);
     }
     
     dragDrag(d) {
-        d.fx = d3.event.x;
-        d.fy = d3.event.y;
+        // d.fx = d3.event.x;
+        // d.fy = d3.event.y;
+        var event = {
+            type: 'dragDrag',
+            id: d.id,
+            x: d3.event.x,
+            y: d3.event.y,
+        }
+    
+        worker.post(event);
     }
     
     dragEnd(d) {
-        if (!d3.event.active) this.simulation.alphaTarget(0);
-        d.fx = null;
-        d.fy = null;
+        // if (!d3.event.active) this.simulation.alphaTarget(0);
+        // d.fx = null;
+        // d.fy = null;
+        var event = {
+            type: 'dragEnd',
+            id: d.id,
+            active: d3.event.active,
+        }
+    
+        worker.post(event);
+    }
+
+    handleMessage(event) {
+        switch(event.type) {
+            case 'error':
+                $('#error').text(event.data);
+                break;
+            case 'progress':
+                $('#counter').text(event.data);
+                break;
+
+            case 'tick':
+                console.log('tick: ', event.data.nodes);
+                graph.storeData(event.data);
+                graph.ticked();
+                break;
+
+            case 'update':
+                graph.update(event.data);
+                break;
+        }
     }
 }
 
 var graph = new Graph();
-// var worker = new WorkerApi('force.worker.js', data => console.log(data));
+var worker = new WorkerApi('force.worker.js', event => graph.handleMessage(event));
 
 // worker.post('yooooo gros');
 
-Api.get(500, function(data) {
+Api.get(10, function(data) {
     data.links = [];
     current_data = data;
-    graph.start(data);
+
+    var event = {
+        type: 'init',
+        params: params,
+        nodes: data.nodes,
+        links: data.links
+    }
+
+    worker.post(event);
 });
 
 $('#button-1').on('click', () => {
