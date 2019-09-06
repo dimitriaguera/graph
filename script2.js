@@ -27,88 +27,115 @@ class WorkerApi {
 
 class Graph {
     constructor() {
-        var svg = d3.select('svg');
-
-        this.width = window.innerWidth;
-        this.height = window.innerHeight;
-        
-        svg.attr('width', this.width);
-        svg.attr('height', this.height);
-
-        this.centerX = this.width / 2;
-        this.centerY = this.height / 2;
-        this.radius = 15;
-        this.forceStrength = 0.03;
-        this.transitionDuration = 400;
-        this.distanceLink = 400;
-
-        params = {
-            centerX: this.centerX,
-            centerY: this.centerY,
-            radius: this.radius,
-            forceStrength: this.forceStrength,
-            transitionDuration: this.transitionDuration,
-            distanceLink: this.distanceLink,
-        };
-
         this.nodes = [];
         this.links = [];
+        this.getSvg();
+        this.getParams();
+        this.getHandlers();
+        this.getWorkers();
+        this.getSelectors();
+    }
 
-        this.ticked = this.ticked.bind(this);
+    getSvg() {
+        this.width = window.innerWidth;
+        this.height = window.innerHeight;
+        this.svg = d3.select('svg');
+        this.svg.attr('width', this.width);
+        this.svg.attr('height', this.height);
+    }
+
+    getParams() {
+        this.params = {
+            centerX: this.width / 2,
+            centerY: this.height / 2,
+            radius: 15,
+            forceStrength: 0.03,
+            transitionDuration: 400,
+            distanceLink: 400,
+        };
+    }
+
+    getHandlers() {
+        this.draw = this.draw.bind(this);
         this.dragStart = this.dragStart.bind(this);
         this.dragDrag = this.dragDrag.bind(this);
         this.dragEnd = this.dragEnd.bind(this);
+    }
 
-        this.link = svg.append('g')
+    getSimulation() {
+        this.simulation = d3.forceSimulation()
+            .velocityDecay(0.4)
+            .force('x', d3.forceX().strength(this.params.forceStrength).x(this.params.centerX))
+            .force('y', d3.forceY().strength(this.params.forceStrength).y(this.params.centerY))
+            .force('link', d3.forceLink().id(d => d.id).distance(this.params.distanceLink))
+            .force('collide', d3.forceCollide(this.params.radius));
+    }
+
+    getWorkers() {
+        this.worker = new WorkerApi('force.worker.js', event => this.handleMessage(event));
+    }
+
+    getSelectors() {
+        this.link = this.svg.append('g')
             .attr('class', 'links')
             .selectAll('line');
 
-        this.node = svg.selectAll('.node')
+        this.node = this.svg.selectAll('.node')
     }
 
-    start(data) {
+    init( data ) {
+        this.worker.post({
+            ...data,
+            type: 'init',
+            params: this.params
+        });
+    }
+
+    update( data ) {
+        this.worker.post({
+            type: 'update',
+            nodesFrom: this.nodes,
+            nodesTo: data.nodes,
+            links: data.links,
+            centerX: this.params.centerX,
+            centerY: this.params.centerY
+        });
+    }
+
+    handleInit( data ) {
+        this.getSimulation();
         this.storeData(data);
         this.applyData();
+        this.simulation.on('tick', this.draw);
     }
 
-    update(data) {
-        this.storeData(data);
+    handleUpdate( data ) {
+        this.storeData( data );
         this.applyData();
-        this.ticked();
-    }
-
-    updateArray(arr1, arr2) {
-        if( arr1 && arr1.length ) {
-            arr2.forEach(el2 => {
-                var el = arr1.find(el1 => el1.id === el2.id );
-                if( el ) {
-                    el2.x = el.x;
-                    el2.y = el.y;
-                }
-            });    
-        }
-        return arr2;
+        this.simulation.alphaTarget(0.1).restart();
     }
 
     storeData(data) {
-        if(data && data.nodes) {
-            //this.nodes = this.updateArray(this.nodes, data.nodes);
-            this.nodes = data.nodes;
-        }
-        if(data && data.links) {
-            this.links = data.links;
-        }
+        if(data && data.nodes) this.nodes = data.nodes;
+        if(data && data.links) this.links = data.links;
     }
 
     applyData() {
         this.applyNode();
         this.applyLink();
+        this.applyForce();
+    }
+
+    applyForce() {
+        this.simulation.nodes(this.nodes);
+        this.simulation.force('link').links(this.links);
     }
 
     applyNode() {
         this.node = this.node.data(this.nodes);
 
-        this.node.exit().transition()
+        this.node.exit()
+            .transition()
             .duration(this.transitionDuration)
             .style('opacity', 0)
             .remove();
@@ -126,7 +153,7 @@ class Graph {
 
         enter.append('circle')
                 .attr('class', 'node')
-                .attr('r', this.radius)
+                .attr('r', this.params.radius)
                 .attr('fill', 'white')
                 .attr('stroke', '#e3e3e3');
 
@@ -147,59 +174,29 @@ class Graph {
     }
 
 
-    ticked() {
-        // this.link
-        //     .attr('x1', d => d.source.x )
-        //     .attr('y1', d => d.source.y )
-        //     .attr('x2', d => d.target.x )
-        //     .attr('y2', d => d.target.y );
-        // this.node.attr('transform', d => `translate(${d.x},${d.y})`);
-        let i = 0;
-        this.node.attr('transform', d => {
-            let a = this.nodes[i++];
-            return `translate(${a.x},${a.y})`;
-        });
+    draw() {
+        this.link.attr('x1', d => d.source.x )
+            .attr('y1', d => d.source.y )
+            .attr('x2', d => d.target.x )
+            .attr('y2', d => d.target.y );
+        this.node.attr('transform', d => `translate(${d.x},${d.y})`);
     }
 
     dragStart(d) {
-        console.log(d);
-        // if (!d3.event.active) this.simulation.alphaTarget(0.3).restart();
-        // d.fx = d.x;
-        // d.fy = d.y;
-
-        var event = {
-            type: 'dragStart',
-            id: d.id,
-            active: d3.event.active,
-        }
-    
-        worker.post(event);
+        if (!d3.event.active) this.simulation.alphaTarget(0.3).restart();
+        d.fx = d.x;
+        d.fy = d.y;
     }
     
     dragDrag(d) {
-        // d.fx = d3.event.x;
-        // d.fy = d3.event.y;
-        var event = {
-            type: 'dragDrag',
-            id: d.id,
-            x: d3.event.x,
-            y: d3.event.y,
-        }
-    
-        worker.post(event);
+        d.fx = d3.event.x;
+        d.fy = d3.event.y;
     }
     
     dragEnd(d) {
-        // if (!d3.event.active) this.simulation.alphaTarget(0);
-        // d.fx = null;
-        // d.fy = null;
-        var event = {
-            type: 'dragEnd',
-            id: d.id,
-            active: d3.event.active,
-        }
-    
-        worker.post(event);
+        if (!d3.event.active) this.simulation.alphaTarget(0);
+        d.fx = null;
+        d.fy = null;
     }
 
     handleMessage(event) {
@@ -207,44 +204,31 @@ class Graph {
             case 'error':
                 $('#error').text(event.data);
                 break;
+
             case 'progress':
                 $('#counter').text(event.data);
                 break;
 
-            case 'tick':
-                graph.storeData(event.data);
-                graph.ticked();
+            case 'init':
+                graph.handleInit(event.data);
                 break;
 
             case 'update':
-                graph.update(event.data);
+                graph.handleUpdate(event.data);
                 break;
         }
     }
 }
 
 var graph = new Graph();
-var worker = new WorkerApi('force.worker.js', event => graph.handleMessage(event));
 
-// worker.post('yooooo gros');
-
-Api.get(800, function(data) {
-    data.links = [];
+Api.get(300, function(data) {
     current_data = data;
-
-    var event = {
-        type: 'init',
-        params: params,
-        nodes: data.nodes,
-        links: data.links
-    }
-
-    worker.post(event);
+    graph.init(data);
 });
 
 $('#button-1').on('click', () => {
-    Api.get(30, function(data) {
-
+    Api.getRandom(300, function(data) {
         current_data = data;
         graph.update(data);
     });
@@ -280,10 +264,7 @@ $('#button-3').on('click', () => {
     current_data = {
         nodes: nodes,
         links: links.filter( l => {
-            // console.log('removeId: ', rNode.id);
-            // console.log('compare:', l.source.id, l.target.id);
             var check = ( l.source.id !== rNode.id && l.target.id !== rNode.id );
-            console.log('check: ', check);
             return check;
         })
     }
