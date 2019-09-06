@@ -230,7 +230,7 @@ var graph = new Graph();
 
 // worker.post('yooooo gros');
 
-Api.get(500, function(data) {
+Api.get(800, function(data) {
     data.links = [];
     current_data = data;
     graph.start(data);

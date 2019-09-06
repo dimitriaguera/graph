@@ -8,17 +8,26 @@ function getRandomInt(min, max) {
 
 var api = {
     get: function( n, callback ) {
-        var json = api.getRandomItems(n);
+        var json = api.getRandomItems(n, false);
         setTimeout(function(){
             callback(json);
         }, 100);
     },
 
-    getRandomItems: function (nodes_number) {
+    getRandom: function( n, callback ) {
+        var json = api.getRandomItems(n, true);
+        setTimeout(function(){
+            callback(json);
+        }, 100);
+    },
+
+    getRandomItems: function (nodes_number, random) {
         var nodes = [];
         var links = [];
 
-        nodes_number = getRandomInt(4, nodes_number);
+        nodes_number = random ? 
+            getRandomInt(4, nodes_number) :
+            nodes_number;
 
         var i = 0;
 

@@ -1,4 +1,4 @@
-importScripts('node_modules/d3/dist/d3.min.js');   
+importScripts('https://d3js.org/d3.v4.min.js');   
 
 
 var simulation = null;

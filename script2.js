@@ -148,13 +148,17 @@ class Graph {
 
 
     ticked() {
-        this.link
-            .attr('x1', d => d.source.x )
-            .attr('y1', d => d.source.y )
-            .attr('x2', d => d.target.x )
-            .attr('y2', d => d.target.y );
-
-        this.node.attr('transform', d => `translate(${d.x},${d.y})`);
+        // this.link
+        //     .attr('x1', d => d.source.x )
+        //     .attr('y1', d => d.source.y )
+        //     .attr('x2', d => d.target.x )
+        //     .attr('y2', d => d.target.y );
+        // this.node.attr('transform', d => `translate(${d.x},${d.y})`);
+        let i = 0;
+        this.node.attr('transform', d => {
+            let a = this.nodes[i++];
+            return `translate(${a.x},${a.y})`;
+        });
     }
 
     dragStart(d) {
@@ -208,7 +212,6 @@ class Graph {
                 break;
 
             case 'tick':
-                console.log('tick: ', event.data.nodes);
                 graph.storeData(event.data);
                 graph.ticked();
                 break;
@@ -225,7 +228,7 @@ var worker = new WorkerApi('force.worker.js', event => graph.handleMessage(event
 
 // worker.post('yooooo gros');
 
-Api.get(10, function(data) {
+Api.get(800, function(data) {
     data.links = [];
     current_data = data;
 
